@@ -35,4 +35,6 @@ module "eks_cluster" {
                     "version" = "v1.29.1-eksbuild.1"},
                   {  "name"    = "amazon-cloudwatch-observability", 
                     "version" = "v1.4.0-eksbuild.1"}]
+
+  tags = local.tags
 }

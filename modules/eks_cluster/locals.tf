@@ -1,6 +1,4 @@
 locals {
-  #service     = var.service_name
-
   vpc_id      = var.vpc_id
   vpc_name    = data.aws_vpc.vpc.tags["Name"]
 
@@ -16,5 +14,10 @@ locals {
   node_group_name = "managed-ondemand"
   instance_types  = var.instance_types
   eks_addons      = var.eks_addons
+
+  tags = merge(
+    {Template = "base eks_cluster module"},
+    var.tags
+  ) 
 }
 

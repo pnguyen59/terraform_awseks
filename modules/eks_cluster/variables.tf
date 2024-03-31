@@ -41,4 +41,8 @@ variable "eks_addons" {
   description = "eks addons"
 }
 
-
+variable "tags" {
+  type        = map
+  description = "Tags for infrastructure resources."
+  default     = {}
+}
