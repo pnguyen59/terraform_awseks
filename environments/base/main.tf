@@ -24,3 +24,12 @@ module "vpc" {
 
   tags        = local.tags
 }
+
+
+module "eks_iam" {
+  source  = "../../modules/iam_eks"
+
+  name        = "${local.name}-iam"
+
+  tags        = local.tags
+}
