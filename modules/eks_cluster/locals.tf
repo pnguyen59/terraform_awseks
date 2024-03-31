@@ -13,6 +13,8 @@ locals {
   tag_val_public_subnet  = "${local.vpc_name}-public-"
   tag_val_private_subnet = "${local.vpc_name}-private-"
 
-  node_group_name = "managed-ondemand"  
+  node_group_name = "managed-ondemand"
+  instance_types  = var.instance_types
+  eks_addons      = var.eks_addons
 }
 

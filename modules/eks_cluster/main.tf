@@ -53,7 +53,7 @@ module "eks" {
   eks_managed_node_groups = {
     initial = {
       node_group_name = local.node_group_name
-      instance_types  = ["m5.large"]
+      instance_types  = local.instance_types
 
       min_size     = 1
       max_size     = 5
@@ -75,4 +75,14 @@ module "eks" {
 data "aws_iam_role" "eks_admin_role_name" {
   count     = local.eks_admin_role_name != "" ? 1 : 0
   name = local.eks_admin_role_name
+}
+
+resource "aws_eks_addon" "eks_addons" {
+  cluster_name                = module.eks.cluster_name
+
+  for_each     = { for idx, v in local.eks_addons: idx => v }
+  addon_name = each.value.name
+  #addon_version    = each.value.version
+
+  resolve_conflicts_on_update = "PRESERVE"
 }

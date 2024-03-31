@@ -24,8 +24,15 @@ module "eks_cluster" {
   cluster_version = "1.29"
   eks_admin_role_name = local.eks_admin_role_name
 
+  instance_types = ["m5.large"]
+
   vpc_id      = local.vpc_id
   aws_region  = local.region
 
+  eks_addons  = [ {  "name"    = "coredns", 
+                    "version" = "v1.11.1-eksbuild.4"},
+                  {  "name"    = "aws-ebs-csi-driver", 
+                    "version" = "v1.29.1-eksbuild.1"},
+                  {  "name"    = "amazon-cloudwatch-observability", 
+                    "version" = "v1.4.0-eksbuild.1"}]
 }
-

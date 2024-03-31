@@ -30,5 +30,15 @@ variable "eks_admin_role_name" {
   default     = ""
 }
 
+variable "instance_types" {
+  type        = list
+  description = "eks_managed_node_groups instance_types"
+  default     = ["m5.large"]
+}
+
+variable "eks_addons" {
+  type        = list
+  description = "eks addons"
+}
 
 
