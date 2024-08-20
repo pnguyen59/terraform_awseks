@@ -46,3 +46,7 @@ variable "tags" {
   description = "Tags for infrastructure resources."
   default     = {}
 }
+
+variable "private_subnets" {
+  type =list
+}

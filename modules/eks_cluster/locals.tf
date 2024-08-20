@@ -1,6 +1,6 @@
 locals {
   vpc_id      = var.vpc_id
-  vpc_name    = data.aws_vpc.vpc.tags["Name"]
+  vpc_name    = "poc"
 
   environment  = var.environment
   name = "${local.environment}_${var.name}"

@@ -1,4 +1,7 @@
-data "aws_availability_zones" "available" {}
+data "aws_availability_zones" "available" {
+   state = "available"
+}
+
 
 locals {
   name   = var.name
@@ -11,7 +14,11 @@ locals {
   tags = merge(
     {Template = "base vpc module"},
     var.tags
-  ) 
+  )
+  private_sub = var.private_subnet_cidrs
+  public_sub = var.public_subnet_cidrs 
+  eks_sub =  var.eks_subnet_cidrs
+  aurora_db_subnet= var.aurora_db_subnet
 }
 
 module "vpc" {
@@ -22,8 +29,8 @@ module "vpc" {
   cidr = local.vpc_cidr
 
   azs             = local.azs
-  public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 6, k)]
-  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 6, k + 10)]
+  public_subnets  = local.public_sub
+  private_subnets = local.private_sub
 
   enable_nat_gateway   = true
   create_igw           = true
@@ -46,4 +53,16 @@ module "vpc" {
   }
 
   tags = local.tags
+  database_subnets = local.aurora_db_subnet
+  database_subnet_group_name = "aurora-group"
 }
+
+module "aurora" {
+  source = "../aurora_msql"
+  db_subnet_group = module.vpc.database_subnet_group_name
+  vpc_id = module.vpc.vpc_id
+  azs = module.vpc.azs
+}
+
+
+

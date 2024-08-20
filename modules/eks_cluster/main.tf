@@ -1,53 +1,39 @@
 # Find the user currently in use by AWS
 data "aws_caller_identity" "current" {}
 
-data "aws_vpc" "vpc" {
-  id = local.vpc_id
-}
-
-data "aws_subnets" "private" {
-  filter {
-    name   = "tag:Name"
-    values = ["${local.tag_val_private_subnet}*"]
-  }
+locals {
+  private_subnets = var.private_subnets
 }
 
 
-#Add Tags for the new cluster in the VPC Subnets
+
+
+# #Add Tags for the private cluster in the VPC Subnets for elb
 resource "aws_ec2_tag" "private_subnets" {
-  for_each    = toset(data.aws_subnets.private.ids)
+  # for_each    = toset(local.public_subnets)
+  for_each    = toset(local.private_subnets)
   resource_id = each.value
-  key         = "kubernetes.io/cluster/${local.name}"
-  value       = "shared"
-}
-
-data "aws_subnets" "public" {
-  filter {
-    name   = "tag:Name"
-    values = ["${local.tag_val_public_subnet}*"]
-  }
-}
-
-#Add Tags for the new cluster in the VPC Subnets
-resource "aws_ec2_tag" "public_subnets" {
-  for_each    = toset(data.aws_subnets.public.ids)
-  resource_id = each.value
-  key         = "kubernetes.io/cluster/${local.name}"
-  value       = "shared"
+  key         = "kubernetes.io/role/internal-elb"
+  value       = "1"
 }
 
 
 module "eks" {
+  # depends_on = [module.vpc]
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.15.2"
-
+  # version = "~> 19.15.2"
+  version = "~> 20.23.0"
   cluster_name                   = local.name
   cluster_version                = local.cluster_version
   cluster_endpoint_public_access = true
+  vpc_id = local.vpc_id
+  # vpc_id     = data.aws_vpc.vpc.id
+  # subnet_ids = data.aws_subnets.private.ids
+  # subnet_ids = data.aws_subnets.eks-list-subnet.ids
+  subnet_ids = local.private_subnets
+  enable_cluster_creator_admin_permissions = true
 
-  vpc_id     = data.aws_vpc.vpc.id
-  subnet_ids = data.aws_subnets.private.ids
-
+  
   #we uses only 1 security group to allow connection with Fargate, MNG, and Karpenter nodes
   create_node_security_group = false
   eks_managed_node_groups = {
@@ -58,92 +44,102 @@ module "eks" {
       min_size     = 1
       max_size     = 5
       desired_size = 3
-      subnet_ids   = data.aws_subnets.private.ids
+      # subnet_ids   = data.aws_subnets.eks-list-subnet.ids
+      subnet_ids   = local.private_subnets
     }
   }
-
-  manage_aws_auth_configmap = true
-  aws_auth_roles = flatten(
-    [
-    {
-      rolearn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.eks_admin_role_name}" # The ARN of the IAM role
-      username = "ops-role"                                                                                      # The user name within Kubernetes to map to the IAM role
-      groups   = ["system:masters"]                                                                              # A list of groups within Kubernetes to which the role is mapped; Checkout K8s Role and Rolebindings
-    }
-  ])
-
+  # node_security_group_additional_rules ={
+  #   ingress_allow_access_from_control_plane = {
+  #     type                          = "ingress"
+  #     protocol                      = "tcp"
+  #     from_port                     = 9443
+  #     to_port                       = 9443
+  #     source_cluster_security_group = true
+  #     description                   = "Allow access from control plane to webhook port of AWS load balancer controller"
+  #   }
+  # }
   tags = local.tags
 }
 
-#module.eks_blueprints_teams.aws_auth_configmap_role,
-
-data "aws_iam_role" "eks_admin_role_name" {
-  count     = local.eks_admin_role_name != "" ? 1 : 0
-  name = local.eks_admin_role_name
+data "aws_eks_cluster" "default" {
+  depends_on = [ module.eks ]
+  name = module.eks.cluster_name
+}
+data "aws_eks_cluster_auth" "default" {
+  depends_on = [ module.eks ]
+  name = module.eks.cluster_name
 }
 
-/*
-resource "aws_eks_addon" "eks_addons" {
-  cluster_name                = module.eks.cluster_name
-
-  for_each     = { for idx, v in local.eks_addons: idx => v }
-  addon_name = each.value.name
-  #addon_version    = each.value.version
-
-  resolve_conflicts_on_update = "PRESERVE"
-}
-*/
-/*
-module "eks_blueprints_teams" {
-  source  = "aws-ia/eks-blueprints-teams/aws"
-  version = "~> 0.2"
-
-  name = "team-platform"
-
-  # Enables elevated, admin privileges for this team
-  enable_admin = true
- 
-  # Define who can impersonate the team-platform Role
-  users             = [
-    data.aws_caller_identity.current.arn,
-    try(data.aws_iam_role.eks_admin_role_name[0].arn, data.aws_caller_identity.current.arn),
-  ]
-  cluster_arn       = module.eks.cluster_arn
-  oidc_provider_arn = module.eks.oidc_provider_arn
-
-  tags = local.tags
-}*/
-/*
-module "eks_blueprints_addons" {
-  source = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.0" #ensure to update this to the latest/desired version
-
-  cluster_name      = module.eks.cluster_name
-  cluster_endpoint  = module.eks.cluster_endpoint
-  cluster_version   = module.eks.cluster_version
-  oidc_provider_arn = module.eks.oidc_provider_arn
-
-  eks_addons = {
-    aws-ebs-csi-driver = {
-      most_recent = true
-    }
-    coredns = {
-      most_recent = true
-    }
-    vpc-cni = {
-      most_recent = true
-    }
-    kube-proxy = {
-      most_recent = true
+provider "helm" {
+  kubernetes {
+    host                   = data.aws_eks_cluster.default.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.default.certificate_authority[0].data)
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      args        = ["eks", "get-token", "--cluster-name", data.aws_eks_cluster.default.id]
+      command     = "aws"
     }
   }
+}
+provider "kubernetes" {
+  config_path = "~/.kube/config"
+  host                   = data.aws_eks_cluster.default.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.default.certificate_authority[0].data)
+  # token                  = data.aws_eks_cluster_auth.default.token
 
-  enable_aws_load_balancer_controller    = true
-  enable_cluster_proportional_autoscaler = true
-  enable_kube_prometheus_stack           = true
-  enable_metrics_server                  = true
-  enable_external_dns                    = true
-  enable_cert_manager                    = true
-  
-  tags = local.tags
-}*/
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    args        = ["eks", "get-token", "--cluster-name", data.aws_eks_cluster.default.id]
+    command     = "aws"
+  }
+}
+
+module "aws_load_balancer_controller_irsa_role" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "5.3.1"
+
+  role_name = "aws-load-balancer-controller"
+
+  attach_load_balancer_controller_policy = true
+
+  oidc_providers = {
+    ex = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:aws-load-balancer-controller"]
+    }
+  }
+}
+
+
+resource "helm_release" "aws_load_balancer_controller" {
+  name = "aws-load-balancer-controller"
+
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  namespace  = "kube-system"
+  # version    = "1.4.4"
+
+  set{
+    name="vpcId"
+    value = local.vpc_id
+  }
+  set {
+    name  = "replicaCount"
+    value = 1
+  }
+
+  set {
+    name  = "clusterName"
+    value = module.eks.cluster_name
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = "aws-load-balancer-controller"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.aws_load_balancer_controller_irsa_role.iam_role_arn
+  }
+}
