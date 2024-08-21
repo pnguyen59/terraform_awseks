@@ -94,7 +94,6 @@ module "eks" {
   vpc_id = var.vpc_id
   private_subnets = var.eks_subnet_ids
   cluster_version = "1.29"
-  # public_subnets = module.vpc.public_subnets
   aws_region = local.region
    eks_addons  = [ {  "name"    = "coredns", 
                     "version" = "v1.11.1-eksbuild.4"},
@@ -105,4 +104,18 @@ module "eks" {
 
   tags = local.tags
   name = "eks-cluster"
+}
+
+module "redis-cluster" {
+  source = "../../modules/Redis_cluster"
+  private_subnets = var.private_subnet_ids
+}
+
+module "aws_s3_bucket" {
+  source = "../../modules/s3_bucket"
+}
+
+module "aws_msk_cluster" {
+  source = "../../modules/Msk_cluster"
+  private_subnets = var.private_subnet_ids
 }

@@ -72,7 +72,8 @@ data "aws_eks_cluster_auth" "default" {
 
 provider "helm" {
   kubernetes {
-    host                   = data.aws_eks_cluster.default.endpoint
+    config_path = "~/.kube/config"
+    host                   = module.eks.cluster_endpoint
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.default.certificate_authority[0].data)
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
@@ -83,15 +84,15 @@ provider "helm" {
 }
 provider "kubernetes" {
   config_path = "~/.kube/config"
-  host                   = data.aws_eks_cluster.default.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.default.certificate_authority[0].data)
-  # token                  = data.aws_eks_cluster_auth.default.token
+  # host                   = data.aws_eks_cluster.default.endpoint
+  # cluster_ca_certificate = base64decode(data.aws_eks_cluster.default.certificate_authority[0].data)
+  # # token                  = data.aws_eks_cluster_auth.default.token
 
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    args        = ["eks", "get-token", "--cluster-name", data.aws_eks_cluster.default.id]
-    command     = "aws"
-  }
+  # exec {
+  #   api_version = "client.authentication.k8s.io/v1beta1"
+  #   args        = ["eks", "get-token", "--cluster-name", data.aws_eks_cluster.default.id]
+  #   command     = "aws"
+  # }
 }
 
 module "aws_load_balancer_controller_irsa_role" {
@@ -112,12 +113,14 @@ module "aws_load_balancer_controller_irsa_role" {
 
 
 resource "helm_release" "aws_load_balancer_controller" {
+  
+  depends_on = [ module.eks ]
   name = "aws-load-balancer-controller"
 
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
   namespace  = "kube-system"
-  # version    = "1.4.4"
+  version    = "1.4.4"
 
   set{
     name="vpcId"
