@@ -10,7 +10,6 @@ locals {
 
 # #Add Tags for the private cluster in the VPC Subnets for elb
 resource "aws_ec2_tag" "private_subnets" {
-  # for_each    = toset(local.public_subnets)
   for_each    = toset(local.private_subnets)
   resource_id = each.value
   key         = "kubernetes.io/role/internal-elb"
@@ -27,12 +26,9 @@ module "eks" {
   cluster_version                = local.cluster_version
   cluster_endpoint_public_access = true
   vpc_id = local.vpc_id
-  # vpc_id     = data.aws_vpc.vpc.id
-  # subnet_ids = data.aws_subnets.private.ids
-  # subnet_ids = data.aws_subnets.eks-list-subnet.ids
   subnet_ids = local.private_subnets
   enable_cluster_creator_admin_permissions = true
-
+  
   
   #we uses only 1 security group to allow connection with Fargate, MNG, and Karpenter nodes
   create_node_security_group = false
@@ -46,6 +42,18 @@ module "eks" {
       desired_size = 3
       # subnet_ids   = data.aws_subnets.eks-list-subnet.ids
       subnet_ids   = local.private_subnets
+    }
+  }
+  cluster_addons = {
+    # adot = {
+    #   addon_name        = "aws-otel-eks-addon"
+    #   addon_version     = "v0.94.1-eksbuild.1" # Replace with the desired ADOT version
+    #   resolve_conflicts = "OVERWRITE"
+    # }
+    coredns = {
+      addon_name        = "coredns"
+      addon_version     = "v1.11.1-eksbuild.9" # Replace with the desired CoreDNS version
+      resolve_conflicts = "OVERWRITE"
     }
   }
   # node_security_group_additional_rules ={
@@ -112,6 +120,20 @@ module "aws_load_balancer_controller_irsa_role" {
 }
 
 
+resource "helm_release" "cert_manager" {
+  name       = "cert-manager"
+  repository = "https://charts.jetstack.io"
+  chart      = "cert-manager"
+  version    = "v1.12.0"
+  namespace  = "cert-manager"
+    create_namespace = true
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+}
+
 resource "helm_release" "aws_load_balancer_controller" {
   
   depends_on = [ module.eks ]
@@ -120,7 +142,7 @@ resource "helm_release" "aws_load_balancer_controller" {
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
   namespace  = "kube-system"
-  version    = "1.4.4"
+  # version    = "1.4.4"
 
   set{
     name="vpcId"
@@ -145,4 +167,11 @@ resource "helm_release" "aws_load_balancer_controller" {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = module.aws_load_balancer_controller_irsa_role.iam_role_arn
   }
+}
+
+resource "aws_eks_addon" "adot" {
+  depends_on = [ helm_release.cert_manager ]
+  cluster_name = module.eks.cluster_name
+  addon_name   = "adot"
+  addon_version = "v0.94.1-eksbuild.1"
 }

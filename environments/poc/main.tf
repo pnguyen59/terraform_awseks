@@ -20,31 +20,6 @@ locals {
 
 
 
-
-# resource "aws_subnet" "eks_private_subnets" {
-#  depends_on = [ module.vpc.vpc_applied ]
-#  count             = length(var.eks_subnet_cidrs)
-#  vpc_id            = module.vpc.vpc_id
-#  cidr_block        = element(var.eks_subnet_cidrs, count.index)
-#  availability_zone = element(module.vpc.availability_zones, count.index)
- 
-#  tags = {
-#    Name = "eks-private-subnet-${count.index + 1}"
-#  }
-# }
-# data "aws_subnets" "eks-list-subnet" {
-#   filter {
-#     name   = "tag:Name"
-#     values = ["eks-private-subnet-*"]
-#   }
-# }
-# data "aws_subnets" "public" {
-#   filter {
-#     name   = "tag:Name"
-#     values = ["${local.tag_val_public_subnet}*"]
-#   }
-# }
-
 resource "aws_db_subnet_group" "aurora_subnet_group" {
   name        = "aurora-db-subnet-group"
   description = "Subnet group for RDS instances"
@@ -54,21 +29,7 @@ resource "aws_db_subnet_group" "aurora_subnet_group" {
     Name = "aurora-subnet-group"
   }
 }
-# #Add Tags for the new cluster in the VPC Subnets
-# resource "aws_ec2_tag" "private_subnets_eks" {
-#   for_each    = toset(data.aws_subnets.eks-list-subnet.ids)
-#   resource_id = each.value
-#   key         = "kubernetes.io/cluster/${local.name}"
-#   value       = "shared"
-# }
 
-# #Add Tags for the new cluster in the VPC Subnets
-# resource "aws_ec2_tag" "public_subnets_eks" {
-#   for_each    = toset(data.aws_subnets.eks-list-subnet.ids)
-#   resource_id = each.value
-#   key         = "kubernetes.io/cluster/${local.name}"
-#   value       = "shared"
-# }
 
 
 module "aurora_db" {
@@ -95,7 +56,7 @@ module "eks" {
   private_subnets = var.eks_subnet_ids
   cluster_version = "1.29"
   aws_region = local.region
-   eks_addons  = [ {  "name"    = "coredns", 
+  eks_addons  = [ {  "name"    = "coredns", 
                     "version" = "v1.11.1-eksbuild.4"},
                   {  "name"    = "aws-ebs-csi-driver", 
                     "version" = "v1.29.1-eksbuild.1"},
@@ -105,6 +66,7 @@ module "eks" {
   tags = local.tags
   name = "eks-cluster"
 }
+
 
 module "redis-cluster" {
   source = "../../modules/Redis_cluster"
