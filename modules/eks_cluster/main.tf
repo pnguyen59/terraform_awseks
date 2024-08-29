@@ -21,6 +21,9 @@ module "eks" {
   # depends_on = [module.vpc]
   source  = "terraform-aws-modules/eks/aws"
   # version = "~> 19.15.2"
+  create_iam_role = false
+  iam_role_arn = var.eks_admin_role_name
+  create_kms_key = false
   version = "~> 20.23.0"
   cluster_name                   = local.name
   cluster_version                = local.cluster_version
@@ -29,6 +32,7 @@ module "eks" {
   subnet_ids = local.private_subnets
   enable_cluster_creator_admin_permissions = true
   cluster_endpoint_private_access = true
+  
    
   #we uses only 1 security group to allow connection with Fargate, MNG, and Karpenter nodes
   create_node_security_group = false
