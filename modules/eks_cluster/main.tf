@@ -22,11 +22,11 @@ resource "aws_vpc_security_group_ingress_rule" "allow_all" {
   ip_protocol       = "-1"
 }
 
-data "aws_security_group" "eks_additional_sg" {
-  tags = {
-    Name = "allow_to_eks"
-  }
-}
+# data "aws_security_group" "eks_additional_sg" {
+#   tags = {
+#     Name = "allow_to_eks"
+#   }
+# }
 
 # #Add Tags for the private cluster in the VPC Subnets for elb
 resource "aws_ec2_tag" "private_subnets" {
@@ -41,10 +41,10 @@ module "eks" {
   # depends_on = [module.vpc]
   source  = "terraform-aws-modules/eks/aws"
   # version = "~> 19.15.2"
-  cluster_security_group_id = data.aws_security_group.eks_additional_sg.id
+  cluster_security_group_id = aws_security_group.allow_to_eks.id
   create_iam_role = false
   iam_role_arn = var.eks_admin_role_name
-  create_kms_key = false
+  # create_kms_key = false
   version = "~> 20.23.0"
   cluster_name                   = local.name
   cluster_version                = local.cluster_version
