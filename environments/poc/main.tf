@@ -32,6 +32,7 @@ resource "aws_db_subnet_group" "aurora_subnet_group" {
 
 
 
+
 module "aurora_db" {
   source = "../../modules/aurora_msql"
   db_subnet_group = aws_db_subnet_group.aurora_subnet_group.name
@@ -51,7 +52,7 @@ module "eks_iam" {
 module "eks" {
   source = "../../modules/eks_cluster"
   environment = "blue"
-  eks_admin_role_name = module.eks_iam.iam_name
+  eks_admin_role_name = module.eks_iam.iam_arn
   vpc_id = var.vpc_id
   private_subnets = var.eks_subnet_ids
   cluster_version = "1.29"

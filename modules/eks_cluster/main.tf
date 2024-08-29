@@ -7,6 +7,26 @@ locals {
 
 
 
+resource "aws_security_group" "allow_to_eks" {
+  name        = "allow_to_eks"
+  description = "Allow TLS inbound traffic and all outbound traffic"
+  vpc_id      = var.vpc_id
+
+  tags = {
+    Name = "allow_to_eks"
+  }
+}
+resource "aws_vpc_security_group_ingress_rule" "allow_all" {
+  security_group_id = aws_security_group.allow_to_eks.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1"
+}
+
+data "aws_security_group" "eks_additional_sg" {
+  tags = {
+    Name = "allow_to_eks"
+  }
+}
 
 # #Add Tags for the private cluster in the VPC Subnets for elb
 resource "aws_ec2_tag" "private_subnets" {
@@ -21,6 +41,7 @@ module "eks" {
   # depends_on = [module.vpc]
   source  = "terraform-aws-modules/eks/aws"
   # version = "~> 19.15.2"
+  cluster_security_group_id = data.aws_security_group.eks_additional_sg.id
   create_iam_role = false
   iam_role_arn = var.eks_admin_role_name
   create_kms_key = false
@@ -40,7 +61,7 @@ module "eks" {
     initial = {
       node_group_name = local.node_group_name
       instance_types  = local.instance_types
-      iam_role_attach_cni_policy = true
+      # iam_role_attach_cni_policy = true
       min_size     = 1
       max_size     = 5
       desired_size = 3
