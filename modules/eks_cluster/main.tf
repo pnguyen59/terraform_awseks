@@ -28,15 +28,15 @@ module "eks" {
   vpc_id = local.vpc_id
   subnet_ids = local.private_subnets
   enable_cluster_creator_admin_permissions = true
-  
-  
+  # cluster_endpoint_private_access = true
+   
   #we uses only 1 security group to allow connection with Fargate, MNG, and Karpenter nodes
   create_node_security_group = false
   eks_managed_node_groups = {
     initial = {
       node_group_name = local.node_group_name
       instance_types  = local.instance_types
-
+      iam_role_attach_cni_policy = true
       min_size     = 1
       max_size     = 5
       desired_size = 3

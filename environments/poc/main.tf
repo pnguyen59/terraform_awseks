@@ -68,16 +68,16 @@ module "eks" {
 }
 
 
-module "redis-cluster" {
-  source = "../../modules/Redis_cluster"
-  private_subnets = var.private_subnet_ids
-}
+# module "redis-cluster" {
+#   source = "../../modules/Redis_cluster"
+#   private_subnets = var.private_subnet_ids
+# }
 
 module "aws_s3_bucket" {
   source = "../../modules/s3_bucket"
 }
 
-module "aws_msk_cluster" {
-  source = "../../modules/Msk_cluster"
-  private_subnets = var.private_subnet_ids
-}
+# module "aws_msk_cluster" {
+#   source = "../../modules/Msk_cluster"
+#   private_subnets = var.private_subnet_ids
+# }

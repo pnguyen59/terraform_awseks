@@ -33,3 +33,13 @@ resource "aws_iam_role_policy_attachment" "iam-AmazonEKSClusterPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.iam.name
 }
+
+resource "aws_iam_role_policy_attachment" "iam-CNI-policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.iam.name
+}
+
+resource "aws_iam_role_policy_attachment" "iam-AmazonEC2ContainerRegistryReadOnly" {
+   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.iam.name
+}
