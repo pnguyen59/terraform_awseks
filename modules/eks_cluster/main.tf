@@ -24,11 +24,11 @@ module "eks" {
   version = "~> 20.23.0"
   cluster_name                   = local.name
   cluster_version                = local.cluster_version
-  cluster_endpoint_public_access = true
+  cluster_endpoint_public_access = false
   vpc_id = local.vpc_id
   subnet_ids = local.private_subnets
   enable_cluster_creator_admin_permissions = true
-  # cluster_endpoint_private_access = true
+  cluster_endpoint_private_access = true
    
   #we uses only 1 security group to allow connection with Fargate, MNG, and Karpenter nodes
   create_node_security_group = false
