@@ -41,7 +41,17 @@ module "eks" {
   # depends_on = [module.vpc]
   source  = "terraform-aws-modules/eks/aws"
   # version = "~> 19.15.2"
-  cluster_security_group_id = aws_security_group.allow_to_eks.id
+  # cluster_security_group_id = aws_security_group.allow_to_eks.id
+  cluster_security_group_additional_rules = {
+    ingress_allow_all = {
+      type                          = "ingress"
+      protocol                      = "-1"
+      cidr_blocks = ["0.0.0.0/0"]
+      from_port                     = 0
+      to_port                       = 0
+      description                   = "Allow all inbound traffic"
+    }
+  }
   create_iam_role = false
   iam_role_arn = var.eks_admin_role_name
   # create_kms_key = false
