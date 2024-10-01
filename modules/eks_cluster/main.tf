@@ -254,16 +254,16 @@ resource "helm_release" "adot_collector" {
   depends_on = [aws_eks_addon.adot]
 }
 
-resource "kubernetes_annotations" "adot_collector_sa" {
-  api_version = "v1"
-  kind        = "ServiceAccount"
-  metadata {
-    name      = "adot-collector"
-    namespace = "opentelemetry-operator-system"
-  }
-  annotations = {
-    "eks.amazonaws.com/role-arn" = aws_iam_role.adot_collector.arn
-  }
+# resource "kubernetes_annotations" "adot_collector_sa" {
+#   api_version = "v1"
+#   kind        = "ServiceAccount"
+#   metadata {
+#     name      = "adot-collector"
+#     namespace = "opentelemetry-operator-system"
+#   }
+#   annotations = {
+#     "eks.amazonaws.com/role-arn" = aws_iam_role.adot_collector.arn
+#   }
 
-  depends_on = [aws_eks_addon.adot]
-}
+#   depends_on = [aws_eks_addon.adot]
+# }
