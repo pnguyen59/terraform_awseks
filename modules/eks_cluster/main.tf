@@ -192,7 +192,7 @@ resource "helm_release" "aws_load_balancer_controller" {
 resource "aws_eks_addon" "adot" {
   cluster_name      = module.eks.cluster_name
   addon_name        = "adot"
-  addon_version     = "v0.88.0-eksbuild.1"
+  addon_version     = "v0.102.0-eksbuild.1"
   resolve_conflicts = "OVERWRITE"
 
   depends_on = [module.eks]
