@@ -33,12 +33,12 @@ resource "aws_db_subnet_group" "aurora_subnet_group" {
 
 
 
-module "aurora_db" {
-  source = "../../modules/aurora_msql"
-  db_subnet_group = aws_db_subnet_group.aurora_subnet_group.name
-  azs = ["ap-southeast-1a","ap-southeast-1b","ap-southeast-1c"]
-  vpc_id = local.vpc_id
-}
+# module "aurora_db" {
+#   source = "../../modules/aurora_msql"
+#   db_subnet_group = aws_db_subnet_group.aurora_subnet_group.name
+#   azs = ["ap-southeast-1a","ap-southeast-1b","ap-southeast-1c"]
+#   vpc_id = local.vpc_id
+# }
 
 
 module "eks_iam" {

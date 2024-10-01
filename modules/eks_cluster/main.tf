@@ -80,27 +80,12 @@ module "eks" {
     }
   }
   cluster_addons = {
-    # adot = {
-    #   addon_name        = "aws-otel-eks-addon"
-    #   addon_version     = "v0.94.1-eksbuild.1" # Replace with the desired ADOT version
-    #   resolve_conflicts = "OVERWRITE"
-    # }
     coredns = {
       addon_name        = "coredns"
       addon_version     = "v1.11.1-eksbuild.9" # Replace with the desired CoreDNS version
       resolve_conflicts = "OVERWRITE"
     }
   }
-  # node_security_group_additional_rules ={
-  #   ingress_allow_access_from_control_plane = {
-  #     type                          = "ingress"
-  #     protocol                      = "tcp"
-  #     from_port                     = 9443
-  #     to_port                       = 9443
-  #     source_cluster_security_group = true
-  #     description                   = "Allow access from control plane to webhook port of AWS load balancer controller"
-  #   }
-  # }
   tags = local.tags
 }
 
@@ -205,8 +190,81 @@ resource "helm_release" "aws_load_balancer_controller" {
 }
 
 resource "aws_eks_addon" "adot" {
-  depends_on = [ helm_release.cert_manager ]
-  cluster_name = module.eks.cluster_name
-  addon_name   = "adot"
-  addon_version = "v0.94.1-eksbuild.1"
+  cluster_name      = module.eks.cluster_name
+  addon_name        = "adot"
+  addon_version     = "v0.94.1-eksbuild.1"
+  resolve_conflicts_on_create = "OVERWRITE"
+
+  configuration_values = jsonencode({
+    collector = {
+      serviceAccount = {
+        create = true
+        name   = "adot-collector"
+      }
+    }
+  })
+
+  depends_on = [module.eks]
+}
+
+resource "aws_iam_role" "adot_collector" {
+  name = "adot-collector-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Effect = "Allow"
+        Principal = {
+          Federated = module.eks.oidc_provider_arn
+        }
+        Condition = {
+          StringEquals = {
+            "${module.eks.oidc_provider}:sub" = "system:serviceaccount:opentelemetry-operator-system:adot-collector"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "adot_collector_cloudwatch" {
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+  role       = aws_iam_role.adot_collector.name
+}
+
+
+resource "helm_release" "adot_collector" {
+  name       = "adot-collector"
+  repository = "https://aws-observability.github.io/aws-otel-helm-charts"
+  chart      = "adot-exporter-for-eks-on-ec2"
+  namespace  = "opentelemetry-operator-system"
+  version    = "0.7.0"  # Replace with the latest version
+
+  set {
+    name  = "clusterName"
+    value = module.eks.cluster_name
+  }
+
+  set {
+    name  = "awsRegion"
+    value = var.aws_region
+  }
+
+  depends_on = [aws_eks_addon.adot]
+}
+
+resource "kubernetes_annotations" "adot_collector_sa" {
+  api_version = "v1"
+  kind        = "ServiceAccount"
+  metadata {
+    name      = "adot-collector"
+    namespace = "opentelemetry-operator-system"
+  }
+  annotations = {
+    "eks.amazonaws.com/role-arn" = aws_iam_role.adot_collector.arn
+  }
+
+  depends_on = [aws_eks_addon.adot]
 }
