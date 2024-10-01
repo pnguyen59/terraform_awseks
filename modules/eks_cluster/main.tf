@@ -192,17 +192,8 @@ resource "helm_release" "aws_load_balancer_controller" {
 resource "aws_eks_addon" "adot" {
   cluster_name      = module.eks.cluster_name
   addon_name        = "adot"
-  addon_version     = "v0.94.1-eksbuild.1"
-  resolve_conflicts_on_create = "OVERWRITE"
-
-  configuration_values = jsonencode({
-    collector = {
-      serviceAccount = {
-        create = true
-        name   = "adot-collector"
-      }
-    }
-  })
+  addon_version     = "v0.88.0-eksbuild.1"
+  resolve_conflicts = "OVERWRITE"
 
   depends_on = [module.eks]
 }
@@ -250,6 +241,14 @@ resource "helm_release" "adot_collector" {
   set {
     name  = "awsRegion"
     value = var.aws_region
+  }
+   set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+ set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = aws_iam_role.adot_collector.arn
   }
 
   depends_on = [aws_eks_addon.adot]
